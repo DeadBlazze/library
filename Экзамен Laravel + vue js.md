@@ -1,0 +1,174 @@
+### Создание проекта Laravel в putty
+```bash 
+composer create-project --prefer-dist laravel/laravel имя_проекта
+```
+
+### Создаём .htaccess в корне
+```  
+RewriteEngine On  
+# Перенаправляем все запросы в папку public  
+RewriteRule ^(.*)$ public/$1 [L]  
+```
+
+### Создание middleware для управления CORS (если есть проблемы с cors)
+```bash  
+php artisan make:middleware CorsMiddleware  
+```
+
+```php  
+#app/Http/Middleware/CorsMiddleware  
+<?php  
+namespace App\Http\Middleware;  
+  
+use Closure;  
+use Illuminate\Http\Request;  
+use Symfony\Component\HttpFoundation\Response;  
+  
+class CorsMiddleware  
+{  
+	public function handle(Request $request, Closure $next): Response  
+	{  
+		$response = $next($request);  
+		$response->headers->set('Access-Control-Allow-Origin', '*'); // Разрешить запросы со всех доменов  
+		$response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');  
+		$response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization');  
+		return $response;  
+	}  
+}  
+```
+Не забыть подключить middleware в bootstrap/app.php
+
+### Подруб jwt-auth  
+```bash  
+composer require tymon/jwt-auth  
+php artisan vendor:publish --provider="Tymon\JWTAuth\Providers\LaravelServiceProvider"  
+php artisan jwt:secret  
+```
+
+### Создаём /frontend в корне. Установка vue, axios, pug, sass
+  
+```bash  
+cd frontend  
+npm create vue@latest  
+npm install  
+npm i axios
+npm i -D sass
+vue add pug
+```
+
+### JWT авторизация. Postman
+
+##### Выдача токена при успешной регистрации
+
+```php
+ $payloadParam = [
+	'sub' => $id_user,
+	'iat' => now()->timestamp,
+	'exp' => now()->addDays(3)->timestamp,
+	'roles' => $roles
+];
+
+$payload = JWTFactory::customClaims($payloadParam)->make();
+
+$token = JWTAuth::encode($payload)->get();
+```
+
+Сюда же как получить id последней строки из базы
+```php
+$id_user = DB::getPdo()->lastInsertId();
+```
+##### Настройка middlware для protected маршрутов
+
+```php
+public function handle(Request $request, Closure $next): Response
+    {  
+        try{
+            $token = JWTAuth::parseToken();
+            $payload = $token->getPayload();
+        } catch (\Exception $e) {
+            return response()->json(['err' => 'Ошибка авторизации: ' . $e->getMessage()], 401);
+        }
+
+        $request->attributes->add(["payload"=> $payload]);
+        return $next($request);
+
+    }
+```
+Не забыть подключить middleware на нужные маршруты
+##### Получение ролей в самом контроллере
+```php
+$payload = $request->attributes->get('payload');
+$role = $payload->get('roles');
+```
+
+
+### Заметки по vue фронтенду
+##### Плавный якорь в vue-router
+
+```js
+// после routes[],
+scrollBehavior(to, from, savedPosition) {
+    if (to.hash) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            el: to.hash,  // Используем 'el' вместо 'selector' в Vue Router v4
+            behavior: 'smooth',
+          });
+        }, 100);
+      });
+    } else if (savedPosition) {
+	  return savedPosition;
+    } else {
+      return { top: 0 }  // Используем 'top' вместо 'x' и 'y' в Vue Router v4
+    }
+
+  }
+```
+
+##### Получение путей из БД
+```js
+// vite.config.js
+export default defineConfig({
+  plugins: [vue(),pug(),vueDevTools()],
+  server: {
+    proxy: {
+      // Прокси для картинок из Laravel /public/data
+      '/data': {
+        target: 'http://127.0.0.1:8000/', // твой Laravel
+        changeOrigin: true,
+      }
+  }
+}
+})
+
+// метод в компоненте
+getImageSrc(image) {
+	return `/data/${image}`;
+	// return new URL(`../../assets/images/tours/${image}`, import.meta.url).href;
+},
+```
+
+##### Сортировка(фильтр) на фронте
+```js
+ methods:{
+    sortProducts(){
+      const key = this.filter;
+      const sortMethods = {
+        id: (a,b) => a.id - b.id,
+        price: (a,b) => a.price - b.price,
+        quantity: (a,b) => a.quantity - b.quantity,
+        name: (a,b) => a.name.localeCompare(b.name),
+        category: (a,b) => a.category.localeCompare(b.category),
+        created_at: (a,b) => new Date(a.created_at) - new Date(b.created_at),
+        updated_at: (a,b) => new Date(a.updated_at) - new Date(b.updated_at)
+      }
+      this.products.sort(sortMethods[key])
+    }
+  },
+  watch: {
+    filter(){
+      this.sortProducts();
+    }
+  }
+```
