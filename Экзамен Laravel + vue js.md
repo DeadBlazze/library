@@ -149,6 +149,68 @@ getImageSrc(image) {
 },
 ```
 
+#### Валидация формы + сохранение jwt
+```js
+methods: {
+    validateForm() {
+      this.errors = {}
+      let valid = true  
+
+      if (!/^[А-Яа-яЁёA-Za-z\s\-]{1,200}$/.test(this.form.fio.trim())) {
+          this.errors.fio = 'ФИО должно содержать только буквы, пробелы'
+          valid = false
+      }
+	  if (!this.form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)){
+          this.errors.email = 'Некорректный email'
+          valid = false
+      }
+
+      if (!/^(?:\+7|8)\d{10}$/.test(this.form.tel)) {
+        this.errors.tel = 'Телефон должен начинаться с +7 или 8 и содержать ровно 11 цифр';
+        valid = false;
+      }
+
+      if (!this.form.password || this.form.password.length < 6) {
+          this.errors.password = 'Пароль должен быть от 6 символов'
+          valid = false
+      }
+    return valid
+    },
+
+    async handleRegister() {
+      if (!this.validateForm()) return 
+      try {
+        const response = await axios.post(import.meta.env.VITE_API_URL + '/register',
+        {
+          "email": this.form.email,
+          "password": this.form.password,
+          "fio": this.form.fio,
+          "tel":  this.form.tel,
+        }
+      )
+        console.log('Успешно зарегистрирован', response.data)
+        localStorage.setItem('token', response.data.access_token)
+        this.$router.push('/user-cabinet')
+        // Перенаправление или уведомление
+      } catch (error) {
+        const msg = error.response?.data?.msg || 'Ошибка входа';
+        alert(msg);яё
+      }
+    }
+  }
+```
+
+#### Кэширование картинок
+```js
+ async mounted() {
+        const cachedTours = sessionStorage.getItem('tours');
+        if(cachedTours){
+            this.tours = JSON.parse(cachedTours);
+        }else {
+            this.fetchTours();
+        }
+    },
+```
 ##### Сортировка(фильтр) на фронте
 ```js
  methods:{
