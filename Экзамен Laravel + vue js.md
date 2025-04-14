@@ -101,7 +101,15 @@ $payload = $request->attributes->get('payload');
 $role = $payload->get('roles');
 ```
 
-
+#### Валидация back regex
+```php
+$validator = Validator::make($request->all(), [
+            'fio' => 'required|max:255',
+            'email' => 'required|max:255',
+            'password' => 'required',
+            'tel' => ['required', 'regex:/^(\+7|8)\s?\d{3}\s?\d{3}\s?\d{2}\s?\d{2}$/'],
+]);
+```
 ### Заметки по vue фронтенду
 ##### Плавный якорь в vue-router
 
